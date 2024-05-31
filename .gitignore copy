@@ -1,0 +1,8 @@
+# Ignore data file
+/data/data_with_label.csv
+
+# Ignore Python cache
+__pycache__/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
