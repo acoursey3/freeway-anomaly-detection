@@ -185,6 +185,28 @@ def train_gatstae(staeparams: GATSTAEParameters, trainingparams: TrainingParamet
 
     return ae, losses
 
+def train_transformer(transformeraeparams: TransformerAEParameters, trainingparams: TrainingParameters, training_data, mse_weights: list = [1,1,1], verbose=False):
+    ae = TransformerAutoencoder(transformeraeparams)
+    optimizer = torch.optim.Adam(params=ae.parameters(), lr=trainingparams.learning_rate)
+    weighted_mse = WeightedMSELoss(weights = mse_weights)
+
+    losses = []
+
+    for epoch_num in tqdm(range(trainingparams.n_epochs), disable=not verbose):
+        shuffled_sequence = random.sample(training_data, len(training_data))
+        for xdata in shuffled_sequence:
+            optimizer.zero_grad()
+            xhat = ae(xdata) # encode and decode the sequence
+
+            loss = weighted_mse(xhat, xdata[-1])
+            loss.backward()
+            optimizer.step()
+
+            losses.append(loss.item())
+
+        if verbose:
+            print(f'Epoch number {epoch_num} last 100 loss {np.mean(losses[-100:])}')
+
 # Computes weighted reconstruction error
 def compute_weighted_error(error, weights):
     error *= np.array(weights) 

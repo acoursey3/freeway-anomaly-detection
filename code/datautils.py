@@ -202,10 +202,11 @@ def get_full_data():
     test_data = melted[(melted['day'] == valid_days[0]) | (melted['day'] == valid_days[1]) | (melted['day'] == valid_days[2]) | (melted['day'] == valid_days[3]) | (melted['day'] == valid_days[4])]
     return train_data, test_data, melted
 
-def label_anomalies(data):
-    human_label_times = np.unique(data[data['human_label']==1]['unix_time'])
-    for human_label_time in human_label_times:
-        data.loc[(data['unix_time'] - human_label_time <= 7200) & (data['unix_time'] - human_label_time >= 0), 'anomaly'] = 1
+def label_anomalies(data, include_manual=True):
+    if include_manual:
+        human_label_times = np.unique(data[data['human_label']==1]['unix_time'])
+        for human_label_time in human_label_times:
+            data.loc[(data['unix_time'] - human_label_time <= 7200) & (data['unix_time'] - human_label_time >= 0), 'anomaly'] = 1
 
     crash_label_times = np.unique(data[data['crash_record']==1]['unix_time'])
     for crash_label_time in crash_label_times:
