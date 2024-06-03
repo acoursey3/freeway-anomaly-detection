@@ -6,9 +6,9 @@ import optuna
 import os
 
 from models import SpatioTemporalAutoencoder
-from parameters import GATAEParameters, RSTAEParameters, GraphAEParameters, TrainingParameters
-from datautils import get_rstae_sequence, get_gcnae_sequence
-from training import train_gatae, train_rstae, train_gcnae, test_rstae, test_gcnae
+from parameters import GATAEParameters, RSTAEParameters, GraphAEParameters, MLPAEParameters, TrainingParameters
+from datautils import get_rstae_sequence, get_gcnae_sequence, get_temporal_sequence
+from training import train_gatae, train_rstae, train_gcnae, train_mlpae, test_rstae, test_gcnae, test_mlpae
 
 model_type = None
 
@@ -38,6 +38,12 @@ def choose_parameters(trial):
             num_layers=trial.suggest_int('num_layers', 1, 5),
             num_heads=trial.suggest_int('num_heads', 1, 5)
         )
+    elif model_type == "mlp":
+        parameters = MLPAEParameters(
+            num_features=3,
+            latent_dim=2,
+            hidden_dim=trial.suggest_categorical('hidden_dim', [16, 32, 64, 128, 256])
+        )
     else:
         raise NotImplementedError("Please one of the allowed model types.")
     
@@ -50,6 +56,8 @@ def train_model(hyperparams, training_params, training_data, mse_weights, verbos
         model, losses = train_gcnae(hyperparams, training_params, training_data, mse_weights, verbose)
     elif model_type == "gat":
         model, losses = train_gatae(hyperparams, training_params, training_data, mse_weights, verbose)
+    elif model_type == "mlp":
+        model, losses = train_mlpae(hyperparams, training_params, training_data, mse_weights, verbose)
     
     return model, losses
 
@@ -58,6 +66,8 @@ def get_data(day_no, timesteps):
         data = get_rstae_sequence(day_no, timesteps, is_morning=True)
     elif model_type == "gcn":
         data = get_gcnae_sequence(day_no, timesteps, is_morning=True)
+    elif model_type == "mlp":
+        data = get_temporal_sequence(day_no, timesteps=1, is_morning=True)
         
     return data
 
@@ -66,6 +76,8 @@ def validate_model(valid_data, mse_weights, model):
         errors, _, _ = test_rstae(valid_data, mse_weights, model)
     elif model_type == "gcn":
         errors, _, _ = test_gcnae(valid_data, mse_weights, model)
+    elif model_type == "mlp":
+        errors, _, _ = test_mlpae(valid_data, mse_weights, model)
     
     return errors
 
@@ -74,7 +86,7 @@ def objective(trial):
     train_params = TrainingParameters(
         learning_rate=trial.suggest_float('learning_rate', 1e-6, 1e-2, log=True),
         batch_size=1,
-        timesteps=trial.suggest_int('timesteps', 2, 10),
+        timesteps=trial.suggest_int('timesteps', 2, 10) if not model_type=="mlp" else 0,
         n_epochs=trial.suggest_int('epochs', 1, 10),
     )
 
@@ -101,18 +113,18 @@ def objective(trial):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Your script description here.')
+    parser = argparse.ArgumentParser()
     
     parser.add_argument(
         '-m', '--model',
-        choices=['rstae', 'gcn', 'transformer', 'gat'],
+        choices=['rstae', 'gcn', 'mlp', 'gat'],
         required=True,
-        help='Choose a model: rstae, gcn, transformer, gat'
+        help='Choose a model: rstae, gcn, mlp, gat'
     )
     
     args = parser.parse_args()
     study_name = args.model # what to call the study
-    study_name = study_name + "_v2"
+    # study_name = study_name + "_v2"
     model_type = args.model # used in optuna optimization to choose relevant functions
     
     storage_subdirectory = 'studies'

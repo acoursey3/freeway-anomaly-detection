@@ -6,7 +6,7 @@ from torch_geometric.nn import GCNConv, GATConv, RGCNConv
 import networkx as nx
 import matplotlib.pyplot as plt
 import torch_geometric as pyg
-from parameters import GATAEParameters, RSTAEParameters, STAEParameters, GATSTAEParameters, GraphAEParameters, TransformerAEParameters
+from parameters import GATAEParameters, RSTAEParameters, STAEParameters, GATSTAEParameters, GraphAEParameters, TransformerAEParameters, MLPAEParameters
 from datautils import generate_edges
 
 class GraphEncoder(nn.Module):
@@ -378,3 +378,31 @@ class GATAE(nn.Module):
         z = self.enc(x)
         xhat = self.dec(z, self.reconstructed_index)
         return xhat
+    
+    
+class MLPAutoencoder(nn.Module):
+    def __init__(self, parameters: MLPAEParameters):
+        super(MLPAutoencoder, self).__init__()
+        
+        # Encoder
+        self.encoder = nn.Sequential(
+            nn.Linear(parameters.num_features, parameters.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(parameters.hidden_dim, parameters.latent_dim)
+        )
+
+        # Decoder
+        self.decoder = nn.Sequential(
+            nn.Linear(parameters.latent_dim, parameters.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(parameters.hidden_dim, parameters.num_features)
+        )
+
+    def forward(self, x):
+        # Encoding
+        encoded = self.encoder(x)
+        
+        # Decoding
+        decoded = self.decoder(encoded)
+
+        return decoded

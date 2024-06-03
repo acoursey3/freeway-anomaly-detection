@@ -62,3 +62,9 @@ class GATAEParameters:
     dropout: int
     num_heads: int
     num_layers: int
+    
+@dataclass
+class MLPAEParameters:
+    num_features: int 
+    latent_dim: int 
+    hidden_dim: int

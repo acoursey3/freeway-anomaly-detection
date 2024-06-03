@@ -2,8 +2,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from models import GATAE, RelationalSTAE, SpatioTemporalAutoencoder, GATSpatioTemporalAutoencoder, GraphAE, TransformerAutoencoder
-from parameters import GATAEParameters, RSTAEParameters, STAEParameters, TrainingParameters, GATSTAEParameters, GraphAEParameters, TransformerAEParameters
+from models import GATAE, RelationalSTAE, SpatioTemporalAutoencoder, GATSpatioTemporalAutoencoder, GraphAE, TransformerAutoencoder, MLPAutoencoder
+from parameters import GATAEParameters, RSTAEParameters, STAEParameters, TrainingParameters, GATSTAEParameters, GraphAEParameters, TransformerAEParameters, MLPAEParameters
 from datautils import get_morning_data, milemarkers
 import torch.nn as nn
 from tqdm import tqdm
@@ -137,6 +137,30 @@ def train_transformerae(params: TransformerAEParameters, trainingparams: Trainin
 
     return ae, losses
 
+def train_mlpae(params: MLPAEParameters, trainingparams: TrainingParameters, training_data, mse_weights: list = [1,1,1], verbose=False):
+    ae = MLPAutoencoder(params)
+    optimizer = torch.optim.Adam(params=ae.parameters(), lr=trainingparams.learning_rate)
+    weighted_mse = WeightedMSELoss(weights = mse_weights)
+
+    losses = []
+
+    for epoch_num in tqdm(range(trainingparams.n_epochs), disable=not verbose):
+        shuffled_sequence = random.sample(training_data, len(training_data))
+        for sequence, current in shuffled_sequence:
+            optimizer.zero_grad()
+            xhat = ae(sequence) # encode and decode the sequence
+
+            loss = weighted_mse(xhat, current)
+            loss.backward()
+            optimizer.step()
+
+            losses.append(loss.item())
+
+        if verbose:
+            print(f'Epoch number {epoch_num} last 100 loss {np.mean(losses[-100:])}')
+
+    return ae, losses
+
 def train_gcnae(gcnaeparams: GraphAEParameters, trainingparams: TrainingParameters, training_data, mse_weights: list = [1,1,1], verbose=False):
     ae = GraphAE(gcnaeparams)
     optimizer = torch.optim.Adam(params=ae.parameters(), lr=trainingparams.learning_rate)
@@ -184,28 +208,6 @@ def train_gatstae(staeparams: GATSTAEParameters, trainingparams: TrainingParamet
             print(f'Epoch number {epoch_num} last 100 loss {np.mean(losses[-100:])}')
 
     return ae, losses
-
-def train_transformer(transformeraeparams: TransformerAEParameters, trainingparams: TrainingParameters, training_data, mse_weights: list = [1,1,1], verbose=False):
-    ae = TransformerAutoencoder(transformeraeparams)
-    optimizer = torch.optim.Adam(params=ae.parameters(), lr=trainingparams.learning_rate)
-    weighted_mse = WeightedMSELoss(weights = mse_weights)
-
-    losses = []
-
-    for epoch_num in tqdm(range(trainingparams.n_epochs), disable=not verbose):
-        shuffled_sequence = random.sample(training_data, len(training_data))
-        for xdata in shuffled_sequence:
-            optimizer.zero_grad()
-            xhat = ae(xdata) # encode and decode the sequence
-
-            loss = weighted_mse(xhat, xdata[-1])
-            loss.backward()
-            optimizer.step()
-
-            losses.append(loss.item())
-
-        if verbose:
-            print(f'Epoch number {epoch_num} last 100 loss {np.mean(losses[-100:])}')
 
 # Computes weighted reconstruction error
 def compute_weighted_error(error, weights):
@@ -259,6 +261,25 @@ def compute_anomaly_threshold_transformerae(training_data, model, weights, metho
 
     for sequence, current in tqdm(training_data):
         xhat = model(sequence)
+        error = (xhat - current) ** 2
+        error = error.detach().numpy()
+        weighted = compute_weighted_error(error, weights)
+        errors.append(weighted)
+
+    errors = np.array(errors)
+    if method == 'max': # max reconstruction error on training data
+        return np.max(errors, axis=0)
+    elif method == 'mean': # mean + 3 * std reconstruction error
+        return np.mean(errors, axis=0) + 3*np.std(errors, axis=0)
+    else:
+        raise NotImplementedError()
+    
+def compute_anomaly_threshold_mlpae(training_data, model, weights, method='max'):
+    model.eval()
+    errors = []
+
+    for sequence, current in tqdm(training_data):
+        xhat = model(sequence).squeeze()
         error = (xhat - current) ** 2
         error = error.detach().numpy()
         weighted = compute_weighted_error(error, weights)
@@ -355,6 +376,27 @@ def test_transformerae(test_sequence, weights, model, verbose=False):
         error = error.detach().numpy()
         weighted = compute_weighted_error(error, weights)
         recons_speeds.append(xhat.detach().numpy()[:,1])
+        speeds.append(current[:,1].detach().numpy())
+        errors.append(weighted)
+
+    errors = np.array(errors)
+    recons_speeds = np.array(recons_speeds)
+    speeds = np.array(speeds)
+
+    return errors, recons_speeds, speeds
+
+def test_mlpae(test_sequence, weights, model, verbose=False):
+    model.eval()
+    errors = []
+    recons_speeds = []
+    speeds = []
+
+    for sequence, current in tqdm(test_sequence, disable=not verbose):
+        xhat = model(sequence).squeeze()
+        error = (xhat - current) ** 2
+        error = error.detach().numpy()
+        weighted = compute_weighted_error(error, weights)
+        recons_speeds.append(xhat.detach().numpy())
         speeds.append(current[:,1].detach().numpy())
         errors.append(weighted)
 
