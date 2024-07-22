@@ -31,3 +31,17 @@ Before running this code, ensure you have the [Freeway Traffic Anomalous Event D
 - [Hyperparameter Optimization](./code/opt_hyperparams.py)
 - [Ablation on Impact of Manual Crash Labels](./code/Manual%20Label%20Ablation.ipynb)
 - [Results Visualization](./code/VisualizeResults.ipynb)
+
+## Citation
+
+If you find this code useful for your research, please consider using the following citation.
+
+```
+@misc{coursey2024ftaed,
+  title={FT-AED: Benchmark Dataset for Early Freeway Traffic Anomalous Event Detection},
+  author={Austin Coursey and Junyi Ji and Marcos Quinones-Grueiro and William Barbour and Yuhang Zhang and Tyler Derr and Gautam Biswas and Daniel B. Work},
+  year={2024},
+  eprint={2406.15283},
+  archivePrefix={arXiv},
+}
+```
