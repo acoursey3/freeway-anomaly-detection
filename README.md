@@ -7,3 +7,23 @@ From the `/code/` directory, run
 `conda env create -f environment.yml`.
 
 Alternatively, it may be preferred to only install the relevant packages as necessary for the parts of the code you want to run. 
+
+## Code Index
+
+- [General Graph Creation](./code/DataToGraph.ipynb)
+- **Model Training**:
+    - [STG-RGCN](./code/TrainSTG-RGCN.ipynb)
+    - [STG-GAT](./code/TrainSTG-GAT.ipynb)
+    - [GCN-LSTM](./code/TrainGCN-LSTM.ipynb)
+    - [GCN](./code/TrainGCN.ipynb)
+    - [Transformer](./code/TrainTransformer.ipynb)
+    - [MLP](./code/TrainMLP.ipynb)
+- **Helper Files**:
+    - [Data Utilities](./code/datautils.py)
+    - [Metric Computation](./code/metrics.py)
+    - [Torch Model Definitions](./code/models.py)
+    - [Parameter Classes](./code/parameters.py)
+    - [Model Training Helpers](./code/training.py)
+- [Hyperparameter Optimization](./code/opt_hyperparams.py)
+- [Ablation on Impact of Manual Crash Labels](./code/Manual%20Label%20Ablation.ipynb)
+- [Results Visualization](./code/VisualizeResults.ipynb)
