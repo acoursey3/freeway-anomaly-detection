@@ -1,4 +1,5 @@
 /data/data_with_label.csv
+/data/nashville_freeway_anomaly.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

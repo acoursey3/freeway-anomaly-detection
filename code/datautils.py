@@ -189,7 +189,7 @@ def get_dec8_data(timesteps):
 
 def get_full_data():
     valid_days = [10, 11, 15, 16, 25] # chosen because they contain accidents of interest we want to detect (note index 10 is Oct 11 and so on)
-    data = pd.read_csv('../data/data_with_label.csv')
+    data = pd.read_csv('../data/nashville_freeway_anomaly.csv')
     melted = pd.melt(data, id_vars=['day', 'milemarker', 'human_label', 'crash_record', 'unix_time'], value_vars=['lane1_speed', 'lane2_speed', 'lane3_speed', 'lane4_speed'], value_name='speed').sort_values(['unix_time', 'milemarker']).drop('variable', axis=1)
     melted2 = pd.melt(data, id_vars=['day', 'milemarker', 'human_label', 'crash_record', 'unix_time'], value_vars=['lane1_occ', 'lane2_occ', 'lane3_occ', 'lane4_occ'], value_name='occ').sort_values(['unix_time', 'milemarker']).drop('variable', axis=1)
     melted3 = pd.melt(data, id_vars=['day', 'milemarker', 'human_label', 'crash_record', 'unix_time'], value_vars=['lane1_volume', 'lane2_volume', 'lane3_volume', 'lane4_volume'], value_name='volume').sort_values(['unix_time', 'milemarker']).drop('variable', axis=1)
