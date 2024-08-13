@@ -54,12 +54,19 @@ def find_percent(thresholds, percent):
     index_closest = thresholds.shape[0] - 1 - np.argmin(np.abs(thresholds[:,0][::-1] - percent))
     return thresholds[index_closest][1]
 
-def find_delays(thresh, errors, anomaly_labels, crash_reported):
+def find_delays(thresh, errors, anomaly_labels, crash_reported, changed_sr=False):
     results = []
-    thresholds = np.array(find_thresholds(thresh, errors, anomaly_labels))
-    all_fp_index = np.where(thresholds[:,0] == 1)[0][-1]
-    no_fp_index = np.where(thresholds[:,0] == 0)[0][-1]
+    thresholds = np.array(find_thresholds(thresh, errors, anomaly_labels, changed_sr))
+    all_fp_indices = np.where(thresholds[:,0] == 1)[0]
+    all_fp_index = all_fp_indices[-1] if len(all_fp_indices) > 0 else None
+
+    no_fp_indices = np.where(thresholds[:,0] == 0)[0]
+    no_fp_index = no_fp_indices[-1] if len(no_fp_indices) > 0 else None
     val_range = np.linspace(0.01, 0.99, 98)
+
+    if no_fp_index is None:
+        # do something here, what does 'no fp mean'?
+        pass
     
     anomaly_pred = threshold_anomalies(thresh+thresholds[no_fp_index,1], errors)
     delays, detects = crash_detection_delay(anomaly_pred, crash_reported) 
@@ -111,9 +118,14 @@ def calculate_tp_fp(anomaly_pred, anomaly_labels):
     fpr = fps / (fps + tns)
     return tpr, fpr
 
-def find_thresholds(thresh, errors, anomaly_labels):
+def find_thresholds(thresh, errors, anomaly_labels, changed_sr=False):
     results = []
-    for i in tqdm(np.linspace(-0.1, 0.2, 1000)):
+    # When changing the sampling rate, the range of thresholds needs to be larger. Keep changed_sr False to reproduce results of main paper
+    if changed_sr:
+        thresh_range = np.linspace(-0.5, 1.5, 1000)
+    else:
+        thresh_range = np.linspace(-0.1, 0.2, 1000)
+    for i in tqdm(thresh_range):
         anomaly_pred = threshold_anomalies(thresh+i, errors)
         tpr, fpr = calculate_tp_fp(anomaly_pred, anomaly_labels)
         results.append([fpr, i])
@@ -129,6 +141,9 @@ def crash_detection_delay(anomaly_pred, crash_reported):
     for i in reported_indices:
         detected = False
         for t in range(i-30, i+30):
+            if t >= len(time_anomalies):
+                detected = False
+                break
             if time_anomalies[t] == 1:
                 delay.append(t-i)
                 detected = True
