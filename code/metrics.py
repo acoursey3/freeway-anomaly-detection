@@ -29,8 +29,8 @@ def generate_anomaly_labels(test_data, kept_indices):
 
     return test_data['anomaly'].to_numpy()
 
-def discrete_fp_delays(thresh, test_errors, anomaly_labels, crash_reported):
-    thresholds = find_thresholds(thresh, test_errors, anomaly_labels)
+def discrete_fp_delays(thresh, test_errors, anomaly_labels, crash_reported, sr=0.5):
+    thresholds = find_thresholds(thresh, test_errors, anomaly_labels) #thresholds[:,0] is the fpr
 
     fprs = [1, 2.5, 5, 10, 20]
     new_thresholds = []
@@ -42,9 +42,9 @@ def discrete_fp_delays(thresh, test_errors, anomaly_labels, crash_reported):
         anomaly_instances.append(threshold_anomalies(thresh+t, test_errors))
 
     for i, fpr in enumerate(fprs):
-        delay, found = crash_detection_delay(anomaly_instances[i], crash_reported)
-        mu = np.mean(delay) / 2
-        std = np.std(delay) / 2
+        delay, found = crash_detection_delay(anomaly_instances[i], crash_reported, sr=sr)
+        mu = np.mean(delay) * sr
+        std = np.std(delay) * sr
         miss_percent = 1-(np.sum(found) / len(found))
         print(f'FPR {fpr}% gives mean delay of {mu} +/- {std} while missing {miss_percent}%.')
 
@@ -52,9 +52,10 @@ def find_percent(thresholds, percent):
     percent = percent / 100
     thresholds = np.array(thresholds)
     index_closest = thresholds.shape[0] - 1 - np.argmin(np.abs(thresholds[:,0][::-1] - percent))
+    print(f"Found FPR of {thresholds[index_closest][0]} for {percent}")
     return thresholds[index_closest][1]
 
-def find_delays(thresh, errors, anomaly_labels, crash_reported, changed_sr=False):
+def find_delays(thresh, errors, anomaly_labels, crash_reported, changed_sr=False, sr=0.5):
     results = []
     thresholds = np.array(find_thresholds(thresh, errors, anomaly_labels, changed_sr))
     all_fp_indices = np.where(thresholds[:,0] == 1)[0]
@@ -65,11 +66,11 @@ def find_delays(thresh, errors, anomaly_labels, crash_reported, changed_sr=False
     val_range = np.linspace(0.01, 0.99, 98)
 
     if no_fp_index is None:
-        # do something here, what does 'no fp mean'?
+        # do something here
         pass
     
     anomaly_pred = threshold_anomalies(thresh+thresholds[no_fp_index,1], errors)
-    delays, detects = crash_detection_delay(anomaly_pred, crash_reported) 
+    delays, detects = crash_detection_delay(anomaly_pred, crash_reported, sr=sr) 
     results.append([0, np.mean(delays), np.std(delays), np.sum(detects)/12])
 
     for i in tqdm(val_range):
@@ -77,13 +78,13 @@ def find_delays(thresh, errors, anomaly_labels, crash_reported, changed_sr=False
         offset_index = thresholds.shape[0] - 1 - np.argmin(np.abs(thresholds[:,0][::-1] - i))
         offset = thresholds[offset_index,1]
         anomaly_pred = threshold_anomalies(thresh+offset, errors)
-        delays, detects = crash_detection_delay(anomaly_pred, crash_reported) 
+        delays, detects = crash_detection_delay(anomaly_pred, crash_reported, sr=sr) 
         if np.sum(detects) == 0:
-            delays = [30]
+            delays = [15/sr]
         results.append([thresholds[offset_index,0], np.mean(delays), np.std(delays), np.sum(detects)/12])
         
     anomaly_pred = threshold_anomalies(thresh+thresholds[all_fp_index,1], errors)
-    delays, detects = crash_detection_delay(anomaly_pred, crash_reported) 
+    delays, detects = crash_detection_delay(anomaly_pred, crash_reported, sr=sr) 
     results.append([1, np.mean(delays), np.std(delays), np.sum(detects)/12])
 
     return results
@@ -132,7 +133,7 @@ def find_thresholds(thresh, errors, anomaly_labels, changed_sr=False):
         
     return results
 
-def crash_detection_delay(anomaly_pred, crash_reported):
+def crash_detection_delay(anomaly_pred, crash_reported, sr=0.5):
     time_anomalies = np.any(anomaly_pred==1, axis=1)
     delay = []
     detects = []
@@ -140,7 +141,7 @@ def crash_detection_delay(anomaly_pred, crash_reported):
     reported_indices = np.where(crash_reported == 1)[0]
     for i in reported_indices:
         detected = False
-        for t in range(i-30, i+30):
+        for t in range(int(i-(15/sr)), int(i+(15/sr))):
             if t >= len(time_anomalies):
                 detected = False
                 break
